@@ -1,4 +1,4 @@
 .env
-   __pycache__/
-   outputs/
-   venv/
+__pycache__/
+outputs/
+venv/
