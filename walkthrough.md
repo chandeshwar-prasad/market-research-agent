@@ -50,8 +50,8 @@ The orchestrator generates a set of targeted questions to cover the research top
 5. What are the potential future applications and enhancements of ClickUp's AI features?
 ```
 
-### Step 3: Concurrent Searching Phase (Tavily Search)
-All searches run concurrently in parallel threads to maximize performance:
+### Step 3: Searching Phase (Tavily Search)
+Each sub-question is searched sequentially, one at a time, so you can watch progress in real time:
 ```text
 Searching (1/5): What are the current ClickUp AI features and how do they com...
 Searching (2/5): How are ClickUp users currently utilizing the AI features, a...
