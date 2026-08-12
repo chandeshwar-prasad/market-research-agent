@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tavily import TavilyClient
 from dotenv import load_dotenv
 from agent.schemas import ResearchQuestions, SearchResult, Source
+from agent.retry import with_retry
 
 load_dotenv()
 
@@ -48,10 +49,14 @@ def deduplicate_sources(results: list[SearchResult]) -> list[SearchResult]:
         result.sources = deduped_sources
     return results
 
+@with_retry
+def _execute_tavily_search(query: str, max_results: int = 3):
+    return client.search(query=query, max_results=max_results)
+
 def _search_one(question: str) -> SearchResult:
     print(f"Starting search: {question[:60]}...")
     try:
-        response = client.search(query=question, max_results=3)
+        response = _execute_tavily_search(question, max_results=3)
         raw_sources = response.get("results", [])
     except Exception as e:
         print(f"Error searching for '{question[:60]}': {e}")
