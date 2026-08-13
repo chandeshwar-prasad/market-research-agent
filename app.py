@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import agent.orchestrator
 from agent.planner import generate_research_questions
 from agent.search import search_questions
 from agent.synthesize import synthesize_insights
@@ -301,73 +302,30 @@ st.markdown('<div class="subtitle-main">Enter a topic, competitor, or market nic
 
 topic = st.text_input("Research Topic / competitor / niche", placeholder="e.g. Notion's AI features")
 
+force_fresh = st.checkbox("Force fresh research (skip cache)", value=False)
+
 if st.button("Run Research") and topic:
-    # 1. Planning
-    with st.spinner("Planning research questions..."):
-        questions_text = generate_research_questions(topic)
+    with st.spinner("Running agentic research pipeline (planning, search, synthesis, and evaluation)..."):
+        filepath = agent.orchestrator.run(topic, force_fresh=force_fresh)
     
-    st.markdown('<div class="subheader-custom">Research Plan</div>', unsafe_allow_html=True)
-    render_questions(questions_text)
-
-    # 2. Searching
-    with st.spinner("Searching the live web..."):
-        results = search_questions(questions_text)
+    st.markdown('<div class="subheader-custom">Research Dossier</div>', unsafe_allow_html=True)
     
-    st.markdown('<div class="subheader-custom">Sources Retrieved</div>', unsafe_allow_html=True)
-    for item in results:
-        if isinstance(item, SearchResult):
-            question = item.question
-            sources = item.sources
-        else:
-            question = item.get("question", "")
-            sources = item.get("sources", [])
-            
-        with st.expander(f"Sources for: {question}"):
-            if not sources:
-                st.info("No sources retrieved for this sub-question.")
-            for source in sources:
-                if isinstance(source, Source):
-                    title = source.title
-                    url = source.url
-                else:
-                    title = source.get("title", "Untitled")
-                    url = source.get("url", "")
-                st.markdown(f"""
-                <div style="background: rgba(128, 128, 128, 0.02); border: 1px solid rgba(128, 128, 128, 0.1); padding: 0.6rem; border-radius: 6px; margin-bottom: 0.4rem;">
-                    <div style="font-weight: 500; font-size: 0.9rem; color: var(--text-color);">{title}</div>
-                    <a href="{url}" target="_blank" style="color: #2563eb; font-size: 0.8rem; text-decoration: none;">{url[:80]}...</a>
-                </div>
-                """, unsafe_allow_html=True)
-
-    # 3. Synthesizing
-    with st.spinner("Synthesizing insights..."):
-        insights = synthesize_insights(topic, results)
-
-    # 4. Evaluation
-    with st.spinner("Fact-checking and evaluating..."):
-        evaluated = evaluate_insights(topic, insights, results)
-
-    st.markdown('<div class="subheader-custom">Evaluated Insights</div>', unsafe_allow_html=True)
-    render_evaluated_insights(evaluated)
-
-    st.markdown('<div class="subheader-custom">Fact-Checking Audit Trail</div>', unsafe_allow_html=True)
-    render_evidence_gaps(evaluated)
-
-    # 5. Exporting
-    filepath = save_report(topic, evaluated, results)
+    with open(filepath, "r", encoding="utf-8") as f:
+        report_md = f.read()
+        
+    st.markdown(report_md)
     
     st.markdown('<div class="subheader-custom">Export Intelligence Report</div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div class="minimal-card" style="border-color: rgba(16, 185, 129, 0.3);">
-        <h4 style="color: #10b981; margin-top: 0; margin-bottom: 0.5rem; font-weight: 600;">Report Generated Successfully</h4>
+        <h4 style="color: #10b981; margin-top: 0; margin-bottom: 0.5rem; font-weight: 600;">Report Generated / Loaded Successfully</h4>
         <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">The verified dossier has been saved locally as <code>{filepath}</code></p>
     </div>
     """, unsafe_allow_html=True)
     
-    with open(filepath, "r", encoding="utf-8") as f:
-        st.download_button(
-            label="Download Markdown Report",
-            data=f.read(),
-            file_name=filepath.split("/")[-1],
-            mime="text/markdown"
-        )
+    st.download_button(
+        label="Download Markdown Report",
+        data=report_md,
+        file_name=filepath.split("/")[-1],
+        mime="text/markdown"
+    )

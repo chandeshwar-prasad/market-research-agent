@@ -4,3 +4,5 @@ groq
 streamlit
 pydantic
 tenacity
+pytest
+pytest-mock
