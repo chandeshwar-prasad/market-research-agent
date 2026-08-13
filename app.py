@@ -1,4 +1,11 @@
 import streamlit as st
+import sys
+
+# Force reload agent modules to clear module cache on Streamlit Cloud
+for m in list(sys.modules.keys()):
+    if m.startswith("agent.") or m == "agent":
+        del sys.modules[m]
+
 import re
 from dotenv import load_dotenv
 
