@@ -56,10 +56,15 @@ def test_orchestrator_iteration_1_success():
         assert mock_search.call_count == 1
         assert mock_eval.call_count == 1
         mock_save.assert_called_once()
-        mock_set.assert_called_once_with("AI trends", {
-            "report_path": "outputs/report.md",
-            "insight_count": 4
-        })
+        mock_set.assert_called_once()
+        called_args = mock_set.call_args[0]
+        assert called_args[0] == "AI trends"
+        payload = called_args[1]
+        assert payload["report_path"] == "outputs/report.md"
+        assert payload["insight_count"] == 4
+        assert "questions" in payload
+        assert "results" in payload
+        assert "evaluation" in payload
 
 def test_orchestrator_iteration_2_fallback():
     # Setup mocks:

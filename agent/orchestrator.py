@@ -27,6 +27,7 @@ def run(topic: str, force_fresh: bool = False) -> str:
     all_kept_insights = []
     all_evidence_gaps = []
     all_search_results = []
+    all_questions_list = []
     cumulative_searches = 0
 
     # 2. Iteration Loop
@@ -67,6 +68,7 @@ def run(topic: str, force_fresh: bool = False) -> str:
         results = search_questions(questions)
         cumulative_searches += num_questions
         all_search_results.extend(results)
+        all_questions_list.extend(questions.questions)
 
         # Synthesizing
         print("Synthesizing insights...")
@@ -99,7 +101,10 @@ def run(topic: str, force_fresh: bool = False) -> str:
     
     set_cached(topic, {
         "report_path": filepath,
-        "insight_count": len(all_kept_insights)
+        "insight_count": len(all_kept_insights),
+        "questions": {"questions": all_questions_list},
+        "results": [r.model_dump() for r in all_search_results],
+        "evaluation": final_evaluation.model_dump()
     })
 
     return filepath

@@ -308,13 +308,60 @@ if st.button("Run Research") and topic:
     with st.spinner("Running agentic research pipeline (planning, search, synthesis, and evaluation)..."):
         filepath = agent.orchestrator.run(topic, force_fresh=force_fresh)
     
-    st.markdown('<div class="subheader-custom">Research Dossier</div>', unsafe_allow_html=True)
+    # Retrieve cached execution data from cache on disk
+    from agent.cache import get_cached
+    cached_data = get_cached(topic, force_fresh=False)
     
+    # If cached data contains the full structured details, render them in premium format!
+    if cached_data and isinstance(cached_data, dict) and "evaluation" in cached_data:
+        try:
+            questions_obj = ResearchQuestions(**cached_data["questions"]) if cached_data.get("questions") else None
+            results_list = [SearchResult(**r) for r in cached_data.get("results", [])]
+            evaluation_obj = EvaluationResult(**cached_data["evaluation"])
+            
+            if questions_obj:
+                st.markdown('<div class="subheader-custom">Research Plan</div>', unsafe_allow_html=True)
+                render_questions(questions_obj)
+                
+            if results_list:
+                st.markdown('<div class="subheader-custom">Sources Retrieved</div>', unsafe_allow_html=True)
+                for item in results_list:
+                    question = item.question
+                    sources = item.sources
+                    with st.expander(f"Sources for: {question}"):
+                        if not sources:
+                            st.info("No sources retrieved for this sub-question.")
+                        for source in sources:
+                            title = source.title
+                            url = source.url
+                            st.markdown(f"""
+                            <div style="background: rgba(128, 128, 128, 0.02); border: 1px solid rgba(128, 128, 128, 0.1); padding: 0.6rem; border-radius: 6px; margin-bottom: 0.4rem;">
+                                <div style="font-weight: 500; font-size: 0.9rem; color: var(--text-color);">{title}</div>
+                                <a href="{url}" target="_blank" style="color: #2563eb; font-size: 0.8rem; text-decoration: none;">{url[:80]}...</a>
+                            </div>
+                            """, unsafe_allow_html=True)
+            
+            st.markdown('<div class="subheader-custom">Evaluated Insights</div>', unsafe_allow_html=True)
+            render_evaluated_insights(evaluation_obj)
+            
+            st.markdown('<div class="subheader-custom">Fact-Checking Audit Trail</div>', unsafe_allow_html=True)
+            render_evidence_gaps(evaluation_obj)
+            
+        except Exception as e:
+            # Fallback to direct markdown rendering if parsing fails
+            st.error(f"Error rendering premium UI: {e}")
+            st.markdown('<div class="subheader-custom">Research Dossier</div>', unsafe_allow_html=True)
+            with open(filepath, "r", encoding="utf-8") as f:
+                st.markdown(f.read())
+    else:
+        # Fallback to direct markdown rendering if cached data is not fully structured
+        st.markdown('<div class="subheader-custom">Research Dossier</div>', unsafe_allow_html=True)
+        with open(filepath, "r", encoding="utf-8") as f:
+            st.markdown(f.read())
+            
     with open(filepath, "r", encoding="utf-8") as f:
         report_md = f.read()
-        
-    st.markdown(report_md)
-    
+            
     st.markdown('<div class="subheader-custom">Export Intelligence Report</div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div class="minimal-card" style="border-color: rgba(16, 185, 129, 0.3);">
