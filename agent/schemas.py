@@ -30,3 +30,8 @@ class EvaluatedInsight(BaseModel):
 class EvaluationResult(BaseModel):
     kept_insights: list[EvaluatedInsight]
     evidence_gaps: list[str] = Field(default_factory=list)
+
+class QAAnswer(BaseModel):
+    answer: str
+    citations: list[str] = Field(default_factory=list)
+

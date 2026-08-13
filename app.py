@@ -10,6 +10,7 @@ from agent.search import search_questions
 from agent.synthesize import synthesize_insights
 from agent.evaluate import evaluate_insights
 from agent.report import save_report
+from agent.qa import answer_question
 from agent.schemas import (
     ResearchQuestions,
     SearchResult,
@@ -183,6 +184,29 @@ st.markdown("""
         margin: 0.8rem 0;
         box-shadow: inset 0 0 4px rgba(220, 38, 38, 0.01);
     }
+    
+    /* Chat styles */
+    .chat-bubble {
+        padding: 0.8rem 1.2rem;
+        border-radius: 12px;
+        margin-bottom: 0.6rem;
+        max-width: 85%;
+        line-height: 1.5;
+    }
+    .chat-question {
+        background: rgba(37, 99, 235, 0.06);
+        border: 1px solid rgba(37, 99, 235, 0.15);
+        align-self: flex-end;
+        margin-left: auto;
+        border-bottom-right-radius: 2px;
+    }
+    .chat-answer {
+        background: rgba(128, 128, 128, 0.03);
+        border: 1px solid rgba(128, 128, 128, 0.12);
+        align-self: flex-start;
+        margin-right: auto;
+        border-bottom-left-radius: 2px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -296,6 +320,16 @@ def render_evidence_gaps(evaluation_input):
         </div>
         """, unsafe_allow_html=True)
 
+# Initialize session state variables
+if "current_topic" not in st.session_state:
+    st.session_state.current_topic = ""
+if "filepath" not in st.session_state:
+    st.session_state.filepath = ""
+if "cached_data" not in st.session_state:
+    st.session_state.cached_data = None
+if "qa_history" not in st.session_state:
+    st.session_state.qa_history = []
+
 # Main Dashboard Layout
 st.markdown('<div class="title-main">Market Research & Trend Analysis Agent</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle-main">Enter a topic, competitor, or market niche to generate a cited, fact-checked research dossier.</div>', unsafe_allow_html=True)
@@ -312,6 +346,17 @@ if st.button("Run Research") and topic:
     from agent.cache import get_cached
     cached_data = get_cached(topic, force_fresh=False)
     
+    # Store in session state and clear old QA history
+    st.session_state.current_topic = topic
+    st.session_state.filepath = filepath
+    st.session_state.cached_data = cached_data
+    st.session_state.qa_history = []
+
+if st.session_state.current_topic:
+    active_topic = st.session_state.current_topic
+    filepath = st.session_state.filepath
+    cached_data = st.session_state.cached_data
+
     # If cached data contains the full structured details, render them in premium format!
     if cached_data and isinstance(cached_data, dict) and "evaluation" in cached_data:
         try:
@@ -376,3 +421,36 @@ if st.button("Run Research") and topic:
         file_name=filepath.split("/")[-1],
         mime="text/markdown"
     )
+
+    # Phase 3 Follow-up Q&A Section
+    st.markdown('<div class="subheader-custom">Interactive Follow-up Q&A</div>', unsafe_allow_html=True)
+    
+    if st.session_state.qa_history:
+        for turn in st.session_state.qa_history:
+            st.markdown(f"""
+            <div style="display: flex; flex-direction: column; width: 100%;">
+                <div class="chat-bubble chat-question">
+                    <strong>Question:</strong> {turn['question']}
+                </div>
+                <div class="chat-bubble chat-answer">
+                    <strong>Answer:</strong> {turn['answer']}
+                    {f'<br><br><strong>Citations:</strong><br>' + '<br>'.join([f'- <a href="{u}" target="_blank" style="color: #2563eb; text-decoration: none;">{u[:80]}... ↗</a>' for u in turn['citations']]) if turn['citations'] else ''}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    with st.form(key="qa_form", clear_on_submit=True):
+        user_q = st.text_input("Ask a follow-up question about this research:", placeholder="e.g. Compare the features or pricing mentioned to Notion AI.")
+        submit_button = st.form_submit_button(label="Submit Question")
+        
+    if submit_button and user_q:
+        with st.spinner("Answering question..."):
+            from agent.qa import answer_question
+            results = cached_data.get("results", []) if cached_data else []
+            qa_res = answer_question(active_topic, user_q, results)
+            st.session_state.qa_history.append({
+                "question": user_q,
+                "answer": qa_res.answer,
+                "citations": qa_res.citations
+            })
+            st.rerun()
